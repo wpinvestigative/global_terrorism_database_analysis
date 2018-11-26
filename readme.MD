@@ -10,7 +10,6 @@
 * **[output_data](output_data)** - Summarized data used in the story in csv format
 * **[raw_data](raw_data)** - Raw data from [Global Terrorism Database](https://www.start.umd.edu/gtd/about/) via the University of Maryland, as well as ideology categorization by Harvard and The Washington Post.
 * **[rmd](markdown)** - R Markdown files used to generate exploratory data analysis
-* **[scripts](scripts)** - Exploratory data analysis and visualizations scripts
 
 # Notebooks
 

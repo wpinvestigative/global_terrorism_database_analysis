@@ -151,6 +151,60 @@ $(document).ready(function () {
 <p>This supplementary data is inspired by Miller, Erin, 2017, “Global Terrorism Database Ideological Motivations of Terrorism in the United States”, and originally hosted at <a href="https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/SACQNK">Harvard Dataverse</a>.</p>
 <p>It is a supplemental file that adds categories to all the incidents tracked by the <a href="https://www.start.umd.edu/gtd/">GTD</a>, such as Environmental extremism, Left-wing extremism, Right-wing extremism, Religious extremism, etc. An analysis based on their categorizations can be found <a href="http://wpinvestigative.github.io/global_terrorism_database_analysis/rmd/expl_analysis.html">here</a></p>
 <p>Visit the <a href="http://www.github.com/wpinvestigative/global_terrorism_database_analysis">repo for this project</a> for more information/data.</p>
+<pre class="r"><code># replace NAs with blanks when displaying data in the markdown table
+options(knitr.kable.NA = '')
+
+library(tidyverse)
+library(readxl)
+library(knitr)
+
+# We cannot rehost GTD's raw data files as per their Terms of Agreement
+# If you're looking to reproduce our work, there are some extra steps
+# It requires downloading their data and placing it into the `raw_data` folder in this project folder
+
+# Load Raw Data -- instructions
+# Download the raw data files from GTD 
+
+raw1 &lt;- read_excel(&quot;../raw_data/gtd_70to95_0718dist.xlsx&quot;, sheet=1)
+raw2 &lt;- read_excel(&quot;../raw_data/gtd_96to13_0718dist.xlsx&quot;, sheet=1)
+raw3 &lt;- read_excel(&quot;../raw_data/gtd_14to17_0718dist.xlsx&quot;, sheet=1)
+raw4 &lt;- read_excel(&quot;../raw_data/gtd1993_0718dist.xlsx&quot;, sheet=1)
+rawData &lt;- rbind(raw1, raw2, raw3, raw4)
+
+# Loading in the Post categorizations
+df2002 &lt;- read_csv(&quot;../raw_data/post_ideology_categorization.csv&quot;)
+
+# Joining and summarizing by fatalities and incidents
+summary &lt;- df2002 %&gt;% 
+  inner_join(rawData) %&gt;% 
+  group_by(category, iyear) %&gt;% 
+  summarize(fatalities=sum(nkill, na.rm=T), incidents=n())
+
+# Some extra calculations to populate the text with in the markdown file
+
+fig1 &lt;- summary %&gt;% filter(category==&quot;right-wing&quot; &amp; iyear==2017) 
+fig1 &lt;- fig1$incidents
+
+fig2 &lt;- summary %&gt;% filter(category==&quot;islamist extremism&quot; &amp; iyear==2017) 
+fig2 &lt;- fig2$incidents
+
+fig3 &lt;- summary %&gt;% filter(category==&quot;left-wing&quot; &amp; iyear==2017) 
+fig3 &lt;- fig3$incidents
+
+fig4 &lt;- summary %&gt;% filter(category==&quot;other/unknown&quot; &amp; iyear==2017) 
+fig4 &lt;- fig4$incidents
+
+fig5 &lt;- round(fig1/(fig1+fig2+fig3+fig4)*100,0)
+
+fig6 &lt;- summary %&gt;% filter(category==&quot;right-wing&quot; &amp; iyear==2017) 
+fig6 &lt;- fig6$fatalities
+
+fig7 &lt;- summary %&gt;% filter(category==&quot;right-wing&quot; &amp; iyear==2016) 
+fig7 &lt;- fig7$incidents
+
+fig8 &lt;- round((fig1-fig7)/fig7*100,2)
+
+s2010 &lt;- summary %&gt;% filter(iyear&gt;=2010) %&gt;% group_by(category) %&gt;% summarize(fatalities=sum(fatalities, na.rm=T), incidents=sum(incidents, na.rm=T)) %&gt;% mutate(percent_incidents=round(incidents/sum(incidents)*100,0), percent_fatalities=round(fatalities/sum(fatalities)*100,0)) %&gt;% arrange(category)</code></pre>
 <hr />
 </div>
 <div id="analysis" class="section level3">

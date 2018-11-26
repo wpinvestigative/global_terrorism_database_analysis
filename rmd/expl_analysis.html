@@ -152,6 +152,38 @@ $(document).ready(function () {
 <p>The categories only are as recent as 2016. The Post attempted to mimic the ideological categorization from START.</p>
 <p>Eventually we didn’t feel comfortable mixing these data sets so we went back and categorized every incident in the United States <a href="http://wpinvestigative.github.io/global_terrorism_database_analysis/rmd/post_analysis.html">ourselves</a>.</p>
 <p>Visit the <a href="http://www.github.com/wpinvestigative/global_terrorism_database_analysis">repo for this project</a> for more information/data.</p>
+<pre class="r"><code># replace NAs with blanks when displaying data in the markdown table
+options(knitr.kable.NA = '')
+
+library(tidyverse)
+library(readxl)
+library(knitr)
+
+# We cannot rehost GTD's raw data files as per their Terms of Agreement
+# If you're looking to reproduce our work, there are some extra steps
+# It requires downloading their data and placing it into the `raw_data` folder in this project folder
+
+# Load Raw Data -- instructions
+# Download the raw data files from GTD 
+
+raw1 &lt;- read_excel(&quot;../raw_data/gtd_70to95_0718dist.xlsx&quot;, sheet=1)
+raw2 &lt;- read_excel(&quot;../raw_data/gtd_96to13_0718dist.xlsx&quot;, sheet=1)
+raw3 &lt;- read_excel(&quot;../raw_data/gtd_14to17_0718dist.xlsx&quot;, sheet=1)
+raw4 &lt;- read_excel(&quot;../raw_data/gtd1993_0718dist.xlsx&quot;, sheet=1)
+rawData &lt;- rbind(raw1, raw2, raw3, raw4)
+
+# Loading ideology categorizations from START for incidents between 1970 and 2016
+db &lt;- load(&quot;../raw_data/globalterrorismdb_USideology_1970-2016.RData&quot;)
+
+# Loading the Post's ideology categorizations for incidents in 2017
+db2017 &lt;- read_csv(&quot;../raw_data/ideology_2017.csv&quot;)
+
+# Joining the two categorization data sets together
+x &lt;- rbind(x, db2017)
+x$eventid &lt;- as.numeric(x$eventid)
+
+# Joining the GTD incident data with the supplemental ideology categorization data
+md_h &lt;- inner_join(rawData, x)</code></pre>
 <div id="fatalities-in-the-u.s.-over-time" class="section level2">
 <h2>Fatalities in the U.S. over time</h2>
 <pre class="r"><code>md_h %&gt;% group_by(iyear) %&gt;% 

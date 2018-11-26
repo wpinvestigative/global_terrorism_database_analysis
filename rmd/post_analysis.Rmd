@@ -18,7 +18,7 @@ It is a supplemental file that adds categories to all the incidents tracked by t
 Visit the [repo for this project](http://www.github.com/wpinvestigative/global_terrorism_database_analysis) for more information/data.
 
 
-```{r setup, include=FALSE}
+```{r setup, warning=F, message=F}
 # replace NAs with blanks when displaying data in the markdown table
 options(knitr.kable.NA = '')
 

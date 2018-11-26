@@ -1,0 +1,244 @@
+---
+title: "Exploratory analysis of Global Terrorism Database"
+author: "Andrew Ba Tran"
+date: "10/31/2018"
+output:
+  html_document:
+    code_folding: hide
+---
+
+This analysis is based on the [Global Terrorism Database](https://www.start.umd.edu/gtd/) paired with the ideology categorizations.
+
+This supplementary data is from  Miller, Erin, 2017, "Global Terrorism Database Ideological Motivations of Terrorism in the United States", and originally hosted at [Harvard Dataverse](https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/SACQNK). 
+
+It is a supplemental file that adds categories to all the incidents tracked by the [GTD](https://www.start.umd.edu/gtd/), such as Environmental extremism, Left-wing extremism, Right-wing extremism, Religious extremism, etc.
+
+The categories only are as recent as 2016. The Post attempted to mimic the ideological categorization from START.
+
+Eventually we didn't feel comfortable mixing these data sets so we went back and categorized every incident in the United States [ourselves](http://wpinvestigative.github.io/global_terrorism_database_analysis/rmd/post_analysis.html).
+
+Visit the [repo for this project](http://www.github.com/wpinvestigative/global_terrorism_database_analysis) for more information/data.
+
+
+```{r setup, include=FALSE}
+# replace NAs with blanks when displaying data in the markdown table
+options(knitr.kable.NA = '')
+
+library(tidyverse)
+library(readxl)
+library(knitr)
+
+# We cannot rehost GTD's raw data files as per their Terms of Agreement
+# If you're looking to reproduce our work, there are some extra steps
+# It requires downloading their data and placing it into the `raw_data` folder in this project folder
+
+# Load Raw Data -- instructions
+# Download the raw data files from GTD 
+
+raw1 <- read_excel("../raw_data/gtd_70to95_0718dist.xlsx", sheet=1)
+raw2 <- read_excel("../raw_data/gtd_96to13_0718dist.xlsx", sheet=1)
+raw3 <- read_excel("../raw_data/gtd_14to17_0718dist.xlsx", sheet=1)
+raw4 <- read_excel("../raw_data/gtd1993_0718dist.xlsx", sheet=1)
+rawData <- rbind(raw1, raw2, raw3, raw4)
+
+# Loading ideology categorizations from START for incidents between 1970 and 2016
+db <- load("../raw_data/globalterrorismdb_USideology_1970-2016.RData")
+
+# Loading the Post's ideology categorizations for incidents in 2017
+db2017 <- read_csv("../raw_data/ideology_2017.csv")
+
+# Joining the two categorization data sets together
+x <- rbind(x, db2017)
+x$eventid <- as.numeric(x$eventid)
+
+# Joining the GTD incident data with the supplemental ideology categorization data
+md_h <- inner_join(rawData, x)
+```
+
+
+## Fatalities in the U.S. over time
+
+```{r fatalities_by_year, warning=F, message=F, fig.width=8, fig.height=4}
+md_h %>% group_by(iyear) %>% 
+  summarize(fatalities=sum(nkill, na.rm=T)) %>% 
+  select(year=iyear, fatalities) %>% 
+  ggplot() + 
+  aes(x=year, y=fatalities) +
+  geom_bar(stat="identity")
+```
+
+
+## Fatalities in the U.S. over time (excluding 2001 figures)
+
+```{r fatalities_by_year2, warning=F, message=F, fig.width=8, fig.height=4}
+md_h %>% group_by(iyear) %>% 
+  summarize(fatalities=sum(nkill, na.rm=T)) %>% 
+  filter(iyear!=2001) %>% select(year=iyear, fatalities) %>% 
+  ggplot() + 
+  aes(x=year, y=fatalities) +
+  geom_bar(stat="identity")
+
+```
+
+
+## Total incidents in the U.S. over time 
+
+```{r incidents_by_year, warning=F, message=F, fig.width=8, fig.height=4}
+md_h %>% group_by(iyear) %>% 
+  summarize(incidents=n())  %>% 
+  select(year=iyear, incidents) %>% 
+  ggplot() + 
+  aes(x=year, y=incidents) +
+  geom_bar(stat="identity")
+
+```
+
+```{r category_prep, warning=F, message=F}
+# Recreating new data frames based on categorizations
+# There is probably a more efficient way to do this but ¯\_(ツ)_/¯ this works
+
+env <- filter(md_h, ENVIRONMENTAL==1) %>% 
+  mutate(category="ENVIRONMENTAL")
+
+lw <- filter(md_h, LEFT.WING==1) %>% 
+  mutate(category="LEFT WING")
+
+rw <- filter(md_h, RIGHT.WING==1) %>% 
+  mutate(category="RIGHT WING")
+
+rws <- filter(md_h, RIGHT.WING.SOVEREIGN==1) %>% 
+  mutate(category="RIGHT WING SOVEREIGN")
+
+rwa <- filter(md_h, RIGHT.WING.ANTIGOV==1) %>% 
+  mutate(category="RIGHT WING ANTIGOV")
+
+r <- filter(md_h, RELIGIOUS==1) %>% 
+  mutate(category="RELIGIOUS")
+
+rc <- filter(md_h, RELIGIOUS.CHRISTIAN==1) %>% 
+  mutate(category="RELIGIOUS CHRISTIAN")
+
+rj <- filter(md_h, RELIGIOUS.JEWISH==1) %>% 
+  mutate(category="RELIGIOUS JEWISH")
+
+ri <- filter(md_h, RELIGIOUS.ISLAMIC==1) %>% 
+  mutate(category="RELIGIOUS ISLAMIC")
+
+is <- filter(md_h, ISLAMIC.SHIA==1) %>% 
+  mutate(category="ISLAMIC SHIA")
+
+isu <- filter(md_h, ISLAMIC.SUNNI==1) %>% 
+  mutate(category="ISLAMIC SUNNI")
+
+ns <- filter(md_h, NATIONALIST.SEPARATIST==1) %>% 
+  mutate(category="NATIONAL SEPARATIST")
+
+si <- filter(md_h, SINGLE==1) %>% 
+  mutate(category="SINGLE")
+
+newdf <- rbind(env, lw, rw, rws, rwa, r, rc, rj, ri, is, isu, ns, si)
+```
+
+## Incidents since 1972
+
+```{r incidents_total_chart_1970, fig.width=9, fig.height=6, warning=F, message=F, echo=F}
+newdf %>% group_by(category, iyear) %>% 
+  summarize(fatalities=sum(nkill, na.rm=T), incidents=n()) %>% 
+  filter(iyear>1972) %>% 
+  ggplot() + 
+  aes(x=iyear, y=incidents) +
+  geom_bar(stat="identity") +
+  facet_wrap(~category, ncol=3)
+```
+
+
+## Incidents since 2002
+
+```{r incidents_total_chart, fig.width=9, fig.height=6, warning=F, message=F}
+newdf %>% group_by(category, iyear) %>% 
+  summarize(fatalities=sum(nkill, na.rm=T), incidents=n()) %>% 
+  filter(iyear>2001) %>% 
+  ggplot() + 
+  aes(x=iyear, y=incidents) +
+  geom_bar(stat="identity") +
+  facet_wrap(~category, ncol=3)
+```
+
+
+```{r incidents_total_table, fig.width=9, fig.height=6, warning=F, message=F}
+newdf %>% group_by(category, iyear) %>% 
+  summarize(incidents=n()) %>% 
+  filter(iyear>2001) %>% 
+  spread(iyear, incidents) %>% 
+  kable()
+```
+
+
+## Fatalities since 2002
+
+```{r fatalities_total_chart, fig.width=9, fig.height=6, warning=F, message=F}
+newdf %>% group_by(category, iyear) %>% 
+  summarize(fatalities=sum(nkill, na.rm=T), incidents=n()) %>% 
+  filter(iyear>2001) %>% 
+  ggplot() + 
+  aes(x=iyear, y=fatalities) +
+  geom_bar(stat="identity") +
+  facet_wrap(~category, ncol=3)
+```
+
+
+```{r fatalities_total_table, fig.width=9, fig.height=6, warning=F, message=F}
+
+newdf %>% group_by(category, iyear) %>% 
+  summarize(fatalities=sum(nkill, na.rm=T)) %>% 
+  filter(iyear>2001) %>% 
+  spread(iyear, fatalities) %>% 
+  kable()
+```
+
+
+## Incidents since 2002 by group
+
+```{r incidents_total_chart_group, fig.width=9, fig.height=9, warning=F, message=F}
+
+newdf %>% group_by(gname, iyear) %>% 
+  summarize(fatalities=sum(nkill, na.rm=T), incidents=n()) %>% 
+  filter(iyear>2001) %>% 
+  ggplot() + 
+  aes(x=iyear, y=incidents) +
+  geom_bar(stat="identity") +
+  facet_wrap(~gname, ncol=4)
+```
+
+
+```{r incidents_total_table_group, fig.width=9, fig.height=9, warning=F, message=F}
+newdf %>% group_by(gname, iyear) %>% 
+  summarize(incidents=n()) %>% 
+  filter(iyear>2001) %>% 
+  spread(iyear, incidents) %>% 
+  kable()
+```
+
+
+## Fatalities since 2002 by group
+
+```{r fatalities_total_chart_group, fig.width=9, fig.height=9, warning=F, message=F}
+newdf %>% group_by(gname, iyear) %>% 
+  summarize(fatalities=sum(nkill, na.rm=T), incidents=n()) %>% 
+  filter(iyear>2001) %>% 
+  ggplot() + 
+  aes(x=iyear, y=fatalities) +
+  geom_bar(stat="identity") +
+  facet_wrap(~gname, ncol=4)
+```
+
+
+```{r fatalities_total_table_group, fig.width=9, fig.height=6, warning=F, message=F}
+newdf %>% group_by(gname, iyear) %>% 
+  summarize(fatalities=sum(nkill, na.rm=T)) %>% 
+  filter(iyear>2001) %>% 
+  spread(iyear, fatalities) %>% 
+  kable()
+```
+
+

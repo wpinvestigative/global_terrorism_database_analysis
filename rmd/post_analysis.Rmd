@@ -1,0 +1,284 @@
+---
+title: "Analysis of Global Terrorism Database with Washington Post ideology categorizations"
+author: "Andrew Ba Tran"
+date: "11/2/2018"
+output:
+  html_document:
+    code_folding: hide
+---
+
+### Context
+
+This analysis is based on the [Global Terrorism Database](https://www.start.umd.edu/gtd/) paired with ideology categorizations as determined by The Washington Post for incidents between 2002 and 2018.
+
+This supplementary data is inspired by  Miller, Erin, 2017, "Global Terrorism Database Ideological Motivations of Terrorism in the United States", and originally hosted at [Harvard Dataverse](https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/SACQNK). 
+
+It is a supplemental file that adds categories to all the incidents tracked by the [GTD](https://www.start.umd.edu/gtd/), such as Environmental extremism, Left-wing extremism, Right-wing extremism, Religious extremism, etc. An analysis based on their categorizations can be found [here](http://wpinvestigative.github.io/global_terrorism_database_analysis/rmd/expl_analysis.html)
+
+Visit the [repo for this project](http://www.github.com/wpinvestigative/global_terrorism_database_analysis) for more information/data.
+
+
+```{r setup, include=FALSE}
+# replace NAs with blanks when displaying data in the markdown table
+options(knitr.kable.NA = '')
+
+library(tidyverse)
+library(readxl)
+library(knitr)
+
+# We cannot rehost GTD's raw data files as per their Terms of Agreement
+# If you're looking to reproduce our work, there are some extra steps
+# It requires downloading their data and placing it into the `raw_data` folder in this project folder
+
+# Load Raw Data -- instructions
+# Download the raw data files from GTD 
+
+raw1 <- read_excel("../raw_data/gtd_70to95_0718dist.xlsx", sheet=1)
+raw2 <- read_excel("../raw_data/gtd_96to13_0718dist.xlsx", sheet=1)
+raw3 <- read_excel("../raw_data/gtd_14to17_0718dist.xlsx", sheet=1)
+raw4 <- read_excel("../raw_data/gtd1993_0718dist.xlsx", sheet=1)
+rawData <- rbind(raw1, raw2, raw3, raw4)
+
+# Loading in the Post categorizations
+df2002 <- read_csv("../raw_data/post_ideology_categorization.csv")
+
+# Joining and summarizing by fatalities and incidents
+summary <- df2002 %>% 
+  inner_join(rawData) %>% 
+  group_by(category, iyear) %>% 
+  summarize(fatalities=sum(nkill, na.rm=T), incidents=n())
+
+# Some extra calculations to populate the text with in the markdown file
+
+fig1 <- summary %>% filter(category=="right-wing" & iyear==2017) 
+fig1 <- fig1$incidents
+
+fig2 <- summary %>% filter(category=="islamist extremism" & iyear==2017) 
+fig2 <- fig2$incidents
+
+fig3 <- summary %>% filter(category=="left-wing" & iyear==2017) 
+fig3 <- fig3$incidents
+
+fig4 <- summary %>% filter(category=="other/unknown" & iyear==2017) 
+fig4 <- fig4$incidents
+
+fig5 <- round(fig1/(fig1+fig2+fig3+fig4)*100,0)
+
+fig6 <- summary %>% filter(category=="right-wing" & iyear==2017) 
+fig6 <- fig6$fatalities
+
+fig7 <- summary %>% filter(category=="right-wing" & iyear==2016) 
+fig7 <- fig7$incidents
+
+fig8 <- round((fig1-fig7)/fig7*100,2)
+
+s2010 <- summary %>% filter(iyear>=2010) %>% group_by(category) %>% summarize(fatalities=sum(fatalities, na.rm=T), incidents=sum(incidents, na.rm=T)) %>% mutate(percent_incidents=round(incidents/sum(incidents)*100,0), percent_fatalities=round(fatalities/sum(fatalities)*100,0)) %>% arrange(category)
+```
+
+-----
+
+### Analysis
+
+Terrorist attacks in the United States have been in decline since 1970 when there were nearly 500 attacks recorded by the Global Terrorism Database from the University of Maryland. But since the lowest point of terrorist attacks in 2006 when there were only six recorded, the number has grown steadily to 10 times that amount in 2016 and 2017.
+
+The number of fatalities have also spiked to 95 in 2017. 
+
+Though political ads and talk show hosts have emphasized left-wing violence from mobs and Antifa, an analysis by the Washington Post shows that the bulk of all attacks have been from suspects expressing right-wing beliefs such as anti-government and racist viewpoints.
+
+Since 2010, far-right suspects were responsible for `r s2010$percent_incidents[4]` percent of all terrorist attacks in the United States. And they made up `r s2010$percent_fatalities[4]` percent of all fatalities-- `r s2010$fatalities[4]` people. That's `r round(s2010$fatalities[2]/s2010$fatalities[4]*10,1)` times the number of fatalities and  `r round(s2010$incidents[2]/s2010$incidents[4]*10,1)` the number of attacks by the far-left.
+
+In 2017 alone, there were `r fig1` terrorist attacks from Right-wing suspects compared to `r fig2` from Islamic extremists, and `r fig3` from Left-wing suspects. About `r fig5` percent of the attacks were from right-wing suspects, making up `r fig6` total fatalities.
+
+That's a notable increase from 2016 of `r fig8` percent, when there were only `r fig7` incidents.
+
+In 2018, there are already six incidents that have been preliminarily identified as right-wing attacks that have resulted in 18 deaths, according to researchers who maintain the United States Extremist Crime Database. These figures include the shooter who posted anti-Semitic conspiracy rants on a social media site moments before entering a synagogue in Pittsburgh and killing 11 people.
+
+There is only one early possibility of a far-left attack in Georgia, in which a police officer was killed.
+
+## Incidents in the U.S. since 1970
+
+```{r incidents_by_year, warning=F, message=F, fig.width=9, fig.height=3}
+i_total_by_year <- rawData %>% group_by(iyear) %>%
+  filter(country_txt=="United States") %>% 
+  summarize(incidents=n())  %>% 
+  select(year=iyear, incidents) 
+
+write.csv(i_total_by_year, "../output_data/incidents_since_1970.csv", row.names=F, na="")
+  
+i_total_by_year %>% ggplot() + 
+  aes(x=year, y=incidents) +
+  geom_bar(stat="identity")
+```
+
+
+## Incidents since 2002
+
+```{r i2002, fig.width=9, fig.height=3, warning=F, message=F}
+i_since_2002 <- df2002 %>% 
+  inner_join(rawData) %>% 
+  group_by(iyear) %>% 
+  summarize(fatalities=sum(nkill, na.rm=T), incidents=n()) 
+
+write.csv(i_since_2002, "../output_data/incidents_since_2002.csv", row.names=F, na="")
+
+  i_since_2002 %>% ggplot() + 
+  aes(x=iyear, y=incidents) +
+  geom_bar(stat="identity") 
+```
+
+
+
+## Fatalities since 2002
+
+```{r f2002, fig.width=9, fig.height=3, warning=F, message=F}
+f_since_2002 <- df2002 %>% 
+  inner_join(rawData) %>% 
+  group_by(iyear) %>% 
+  summarize(fatalities=sum(nkill, na.rm=T), incidents=n()) 
+
+write.csv(f_since_2002, "../output_data/fatalities_since_2002.csv", row.names=F, na="")
+
+  f_since_2002 %>%  ggplot() + 
+  aes(x=iyear, y=fatalities) +
+  geom_bar(stat="identity") 
+```
+
+## Incidents since 2002 by ideology
+
+```{r incidents_total_chart, fig.width=9, fig.height=3, warning=F, message=F}
+df2002 %>% 
+  inner_join(rawData) %>% 
+  group_by(category, iyear) %>% 
+  summarize(fatalities=sum(nkill, na.rm=T), incidents=n()) %>% 
+  filter(iyear>2001) %>% 
+  ggplot() + 
+  aes(x=iyear, y=incidents) +
+  geom_bar(stat="identity") +
+  facet_wrap(~category, ncol=4)
+```
+
+
+```{r incidents_total_table, warning=F, message=F}
+df2002 %>% 
+  inner_join(rawData) %>% 
+  group_by(category, iyear) %>% 
+  summarize(incidents=n()) %>% 
+  filter(iyear>2001) %>% 
+  spread(iyear, incidents) -> i_ideology
+
+write.csv(i_ideology, "../output_data/incidents_since_2002_ideology.csv", row.names=F, na="")
+
+kable(i_ideology)
+```
+
+
+## Fatalities since 2002 by ideology
+
+```{r fatalities_total_chart, fig.width=9, fig.height=3, warning=F, message=F}
+
+df2002 %>% 
+  inner_join(rawData) %>% 
+  group_by(category, iyear) %>% 
+  summarize(fatalities=sum(nkill, na.rm=T), incidents=n()) %>% 
+  filter(iyear>2001) %>% 
+  ggplot() + 
+  aes(x=iyear, y=fatalities) +
+  geom_bar(stat="identity") +
+  facet_wrap(~category, ncol=4)
+```
+
+
+```{r fatalities_total_table, fig.width=9, fig.height=6, warning=F, message=F}
+
+df2002 %>% 
+  inner_join(rawData) %>% 
+  group_by(category, iyear) %>% 
+  summarize(fatalities=sum(nkill, na.rm=T)) %>% 
+  filter(iyear>2001) %>% 
+  spread(iyear, fatalities) -> f_fatalities
+
+write.csv(f_fatalities, "../output_data/fatalities_since_2002_ideology.csv", row.names=F, na="")
+
+kable(f_fatalities)
+```
+
+
+## Average fatalities by incident since 2002 by ideology
+
+```{r fatalities_total_chart_avg, fig.width=9, fig.height=3, warning=F, message=F}
+
+df2002 %>% 
+  inner_join(rawData) %>% 
+  group_by(category, iyear) %>% 
+  summarize(fatalities=sum(nkill, na.rm=T), incidents=n()) %>% 
+  mutate(average=round(fatalities/incidents,2)) %>% 
+  filter(iyear>2001) %>% 
+  ggplot() + 
+  aes(x=iyear, y=average) +
+  geom_bar(stat="identity") +
+  facet_wrap(~category, ncol=4)
+```
+
+
+## Incidents since 2002 by group
+
+```{r incidents_total_chart_group, fig.width=9, fig.height=9, warning=F, message=F}
+
+df2002 %>% 
+  inner_join(rawData) %>% 
+  group_by(gname, iyear) %>% 
+  summarize(fatalities=sum(nkill, na.rm=T), incidents=n()) %>% 
+  filter(iyear>2001) %>% 
+  ggplot() + 
+  aes(x=iyear, y=incidents) +
+  geom_bar(stat="identity") +
+  facet_wrap(~gname, ncol=4)
+```
+
+
+```{r incidents_total_table_group, fig.width=9, fig.height=9, warning=F, message=F}
+
+df2002 %>% 
+  inner_join(rawData) %>% 
+  group_by(gname, iyear) %>% 
+  summarize(incidents=n()) %>% 
+  filter(iyear>2001) %>% 
+  spread(iyear, incidents) -> i_group
+
+write.csv(i_group, "../output_data/incidents_since_2002_group.csv", row.names=F, na="")
+
+kable(i_group)
+```
+
+
+## Fatalities since 2002 by group
+
+```{r fatalities_total_chart_group, fig.width=9, fig.height=9, warning=F, message=F}
+
+df2002 %>% 
+  inner_join(rawData) %>% 
+  group_by(gname, iyear) %>% 
+  summarize(fatalities=sum(nkill, na.rm=T), incidents=n()) %>% 
+  filter(iyear>2001) %>% 
+  ggplot() + 
+  aes(x=iyear, y=fatalities) +
+  geom_bar(stat="identity") +
+  facet_wrap(~gname, ncol=4)
+```
+
+
+```{r fatalities_total_table_group, fig.width=9, fig.height=6, warning=F, message=F}
+
+df2002 %>% 
+  inner_join(rawData) %>% 
+  group_by(gname, iyear) %>% 
+  summarize(fatalities=sum(nkill, na.rm=T)) %>% 
+  filter(iyear>2001) %>% 
+  spread(iyear, fatalities) -> f_group
+
+write.csv(f_group, "../output_data/fatalities_since_2002_group.csv", row.names=F, na="")
+
+kable(f_group)
+```
+
+
